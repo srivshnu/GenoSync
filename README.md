@@ -1,7 +1,7 @@
 # GenoSync — DNA Sequence Matching
 
 GenoSync compares DNA sequences fetched from NCBI to estimate similarity between two organisms using global and local alignment methods.
-
+WEBSITE : https://genosync-dnamatcher.streamlit.app/
 <div style="font-family: Inter, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333333;">
 <h2 style="color:#00796B; margin-top:0;">Features (brief)</h2>
 <ul>
