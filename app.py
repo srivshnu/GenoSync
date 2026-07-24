@@ -28,7 +28,7 @@ st.markdown("---")
 def get_species_flow(index: int):
     common = st.text_input(
         f"Species {index} common name",
-        placeholder="e.g. dog, pigeon, tiger",
+        placeholder="e.g. goat, bison, cow",
         key=f"common_{index}",
     )
     org_type = st.selectbox(
