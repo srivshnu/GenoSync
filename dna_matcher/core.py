@@ -61,7 +61,6 @@ def _fetch_with_retry(fn, retries=3, base_delay=1.0):
     return None
 
 
-@st.cache_data(ttl=86400)
 def search_species_options(common_name: str, max_results: int = 6):
     def _fetch():
         # Try a set of query variants to improve common-name resolution (e.g. "tiger",
@@ -125,7 +124,6 @@ def search_species_options(common_name: str, max_results: int = 6):
     return results
 
 
-@st.cache_data(ttl=86400)
 def get_scientific_name(common_name: str):
     options = search_species_options(common_name, max_results=1)
     return options[0][1] if options else None
@@ -174,7 +172,6 @@ def _fetch_single_marker(species_name: str, gene: str):
     return _fetch_with_retry(_fetch)
 
 
-@st.cache_data(ttl=86400)
 def get_marker_sequence(species_name: str, gene: str):
     existing = db_get_marker_sequence(species_name, gene)
     if existing:
@@ -202,7 +199,6 @@ def _build_marker_order(types):
     return order
 
 
-@st.cache_data(ttl=86400)
 def fetch_common_marker_sequences(species_names: tuple, types: tuple):
     markers = _build_marker_order(types)
     for gene in markers:
@@ -221,7 +217,6 @@ def fetch_common_marker_sequences(species_names: tuple, types: tuple):
     return None
 
 
-@st.cache_data(ttl=86400)
 def compare_species_matrix(species_sequences: dict, marker: str, max_len: int = 1000):
     species = list(species_sequences.keys())
     matrix = {name: {} for name in species}
