@@ -45,6 +45,14 @@ def get_species_flow(index: int):
 
         if not options:
             st.error(f"No species found for '{common}'. Try a different name.")
+            # If taxonomy debug info was recorded, show which queries were tried.
+            dbg = st.session_state.get("tax_debug", {}).get(common)
+            if dbg:
+                st.info("Queries tried:")
+                for q in dbg.get("queries_tried", []):
+                    st.code(q)
+                last = dbg.get("last_idlist") or []
+                st.write(f"Last returned ID list: {last}")
         elif len(options) == 1:
             sci_name = options[0][1]
             st.info(f"Found: **{options[0][0]}** (*{sci_name}*)")

@@ -87,19 +87,41 @@ def search_species_options(common_name: str, max_results: int = 6):
     gray wolf, dingo, etc. Returns [] if nothing is found.
     """
     def _fetch():
-        handle  = Entrez.esearch(db="taxonomy", term=common_name, retmax=max_results)
-        record  = Entrez.read(handle)
-        handle.close()
-        if not record["IdList"]:
-            return []
+        # Try a small set of query variants to improve common-name resolution.
+        query_variants = [
+            common_name,
+            f'"{common_name}"',
+            f"{common_name}[All Names]",
+            f"{common_name}[Common Name]",
+            f"{common_name}[Text Word]",
+        ]
 
-        handle  = Entrez.efetch(db="taxonomy", id=record["IdList"], retmode="xml")
-        records = Entrez.read(handle)
-        handle.close()
+        records = None
+        for q in query_variants:
+            try:
+                handle = Entrez.esearch(db="taxonomy", term=q, retmax=max_results)
+                record = Entrez.read(handle)
+                handle.close()
+            except Exception:
+                record = {"IdList": []}
+
+            if record and record.get("IdList"):
+                try:
+                    handle = Entrez.efetch(db="taxonomy", id=record["IdList"], retmode="xml")
+                    records = Entrez.read(handle)
+                    handle.close()
+                except Exception:
+                    records = None
+
+            if records:
+                break
+
+        if not records:
+            return []
 
         results = []
         for r in records:
-            sci    = r.get("ScientificName", "")
+            sci = r.get("ScientificName", "")
             # GenbankCommonName is NCBI's standardised label; fall back to sci name
             common = r.get("GenbankCommonName") or r.get("CommonName") or sci
             results.append((common, sci))

@@ -33,15 +33,17 @@ MARKER_CHAINS = {
 }
 
 MARKER_LENGTH_RANGE = {
-    "COI":  (500,  1600),
-    "16S":  (400,  1800),
-    "12S":  (300,  1100),
-    "cytb": (800,  1200),
-    "rbcL": (400,  600),
-    "matK": (800,  900),
-    "ITS":  (400,  800),
-    "LSU":  (800,  3500),
-    "SSU":  (1600, 2000),
+    # Keep sensible minimums but allow a larger upper bound so long comparisons
+    # (up to 10,000 bp) are possible when the frontend slider requests them.
+    "COI":  (500,  10000),
+    "16S":  (400,  10000),
+    "12S":  (300,  10000),
+    "cytb": (800,  10000),
+    "rbcL": (400,  10000),
+    "matK": (800,  10000),
+    "ITS":  (400,  10000),
+    "LSU":  (800,  10000),
+    "SSU":  (1600, 10000),
 }
 
 NCBI_TIMEOUT = float(os.environ.get("NCBI_TIMEOUT", 20.0))
@@ -62,15 +64,49 @@ def _fetch_with_retry(fn, retries=3, base_delay=1.0):
 @st.cache_data(ttl=86400)
 def search_species_options(common_name: str, max_results: int = 6):
     def _fetch():
-        handle = Entrez.esearch(db="taxonomy", term=common_name, retmax=max_results)
-        record = Entrez.read(handle)
-        handle.close()
-        if not record["IdList"]:
-            return []
+        # Try a set of query variants to improve common-name resolution (e.g. "tiger",
+        # "royal bengal tiger", or field-restricted queries). Stop at the first
+        # non-empty result set.
+        query_variants = [
+            common_name,
+            f'"{common_name}"',
+            f"{common_name}[All Names]",
+            f"{common_name}[Common Name]",
+            f"{common_name}[Text Word]",
+        ]
 
-        handle = Entrez.efetch(db="taxonomy", id=record["IdList"], retmode="xml")
-        records = Entrez.read(handle)
-        handle.close()
+        records = None
+        for q in query_variants:
+            try:
+                handle = Entrez.esearch(db="taxonomy", term=q, retmax=max_results)
+                record = Entrez.read(handle)
+                handle.close()
+            except Exception:
+                record = {"IdList": []}
+
+            if record and record.get("IdList"):
+                try:
+                    handle = Entrez.efetch(db="taxonomy", id=record["IdList"], retmode="xml")
+                    records = Entrez.read(handle)
+                    handle.close()
+                except Exception:
+                    records = None
+
+            if records:
+                break
+
+        if not records:
+            # record last attempted queries and any final IdList for UI debugging
+            try:
+                st.session_state.setdefault("tax_debug", {})
+                st.session_state["tax_debug"][common_name] = {
+                    "queries_tried": query_variants,
+                    "last_idlist": record.get("IdList") if record else [],
+                }
+            except Exception:
+                # In contexts without Streamlit session state, ignore silently
+                pass
+            return []
 
         results = []
         for r in records:
@@ -96,7 +132,9 @@ def get_scientific_name(common_name: str):
 
 
 def _fetch_single_marker(species_name: str, gene: str):
-    min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 5000))
+    # Allow a larger default upper bound (10k) so long sequences are not
+    # rejected by the SLEN filter when the UI requests them.
+    min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 10000))
     search_term = (
         f"{species_name}[Organism] AND {gene}[Gene] "
         f"AND {min_len}[SLEN]:{max_len}[SLEN]"

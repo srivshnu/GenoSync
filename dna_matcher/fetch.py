@@ -8,15 +8,15 @@ Entrez.email = os.environ.get("NCBI_EMAIL", "")
 Entrez.api_key = os.environ.get("NCBI_API_KEY", "")
 
 MARKER_LENGTH_RANGE = {
-    "COI":  (500,  1600),
-    "16S":  (400,  1800),
-    "12S":  (300,  1100),
-    "cytb": (800,  1200),
-    "rbcL": (400,  600),
-    "matK": (800,  900),
-    "ITS":  (400,  800),
-    "LSU":  (800,  3500),
-    "SSU":  (1600, 2000),
+    "COI":  (500,  10000),
+    "16S":  (400,  10000),
+    "12S":  (300,  10000),
+    "cytb": (800,  10000),
+    "rbcL": (400,  10000),
+    "matK": (800,  10000),
+    "ITS":  (400,  10000),
+    "LSU":  (800,  10000),
+    "SSU":  (1600, 10000),
 }
 
 
@@ -33,7 +33,7 @@ def _fetch_with_retry(fn, retries=3, base_delay=1.0):
 
 
 def fetch_marker_sequence(species_name: str, gene: str):
-    min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 5000))
+    min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 10000))
     search_term = (
         f"{species_name}[Organism] AND {gene}[Gene] "
         f"AND {min_len}[SLEN]:{max_len}[SLEN]"
