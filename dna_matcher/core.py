@@ -1,22 +1,17 @@
-# dna_matcher/core.py — package-level orchestration for multi-species DNA matching
-
+# dna_matcher/core.py
 import os
-import time
 from collections import OrderedDict
-
-import streamlit as st
-from Bio import Entrez, SeqIO
+from Bio import Entrez
 from dotenv import load_dotenv
 
-from .algorithms import calculate_similarity_and_alignment
+from .fetch import fetch_marker_sequence
+from .compare import compare_species_matrix, build_neighbor_joining_tree
 from .db import (
     init_db,
     get_marker_sequence as db_get_marker_sequence,
     save_marker_sequence,
     get_search_results,
     save_search_results,
-    get_comparison_result,
-    save_comparison_result,
 )
 
 load_dotenv()
@@ -47,19 +42,6 @@ MARKER_LENGTH_RANGE = {
 }
 
 NCBI_TIMEOUT = float(os.environ.get("NCBI_TIMEOUT", 20.0))
-
-
-def _fetch_with_retry(fn, retries=3, base_delay=1.0):
-    for attempt in range(retries):
-        try:
-            result = fn()
-            if result is not None:
-                return result
-        except Exception as e:
-            print(f"[Retry {attempt + 1}/{retries}] {e}")
-        time.sleep(base_delay * (2 ** attempt))
-    return None
-
 
 def search_species_options(common_name: str, max_results: int = 6):
     def _fetch():
@@ -98,16 +80,6 @@ def search_species_options(common_name: str, max_results: int = 6):
                 break
 
         if not records:
-            # record last attempted queries and any final IdList for UI debugging
-            try:
-                st.session_state.setdefault("tax_debug", {})
-                st.session_state["tax_debug"][common_name] = {
-                    "queries_tried": query_variants,
-                    "last_idlist": record.get("IdList") if record else [],
-                }
-            except Exception:
-                # In contexts without Streamlit session state, ignore silently
-                pass
             return []
 
         results = []
@@ -117,74 +89,20 @@ def search_species_options(common_name: str, max_results: int = 6):
             results.append((common, sci))
         return results
 
-    cached = get_search_results(common_name)
-    if cached:
-        return cached[:max_results]
-
-    results = _fetch_with_retry(_fetch) or []
-    if results:
-        save_search_results(common_name, results)
-    return results
-
 
 def get_scientific_name(common_name: str):
     options = search_species_options(common_name, max_results=1)
     return options[0][1] if options else None
-
-
-def _fetch_single_marker(species_name: str, gene: str):
-    # Allow a larger default upper bound (10k) so long sequences are not
-    # rejected by the SLEN filter when the UI requests them.
-    min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 10000))
-    search_term = (
-        f"{species_name}[Organism] AND {gene}[Gene] "
-        f"AND {min_len}[SLEN]:{max_len}[SLEN]"
-    )
-
-    def _fetch():
-        handle = Entrez.esearch(
-            db="nucleotide",
-            term=search_term,
-            retmax=5,
-            sort="relevance",
-            timeout=NCBI_TIMEOUT,
-        )
-        record = Entrez.read(handle)
-        handle.close()
-        if not record["IdList"]:
-            return None
-
-        for seq_id in record["IdList"]:
-            handle = Entrez.efetch(
-                db="nucleotide",
-                id=seq_id,
-                rettype="fasta",
-                retmode="text",
-                timeout=NCBI_TIMEOUT,
-            )
-            seq_record = SeqIO.read(handle, "fasta")
-            handle.close()
-            seq_str = str(seq_record.seq)
-            if min_len <= len(seq_str) <= max_len:
-                print(f"[NCBI] {species_name} {gene}: accepted {len(seq_str)}bp")
-                return seq_str
-            print(f"[NCBI] {species_name} {gene}: skipped {len(seq_str)}bp")
-
-        return None
-
-    return _fetch_with_retry(_fetch)
-
 
 def get_marker_sequence(species_name: str, gene: str):
     existing = db_get_marker_sequence(species_name, gene)
     if existing:
         return existing
 
-    seq = _fetch_single_marker(species_name, gene)
+    seq = fetch_marker_sequence(species_name, gene)
     if seq:
         save_marker_sequence(species_name, gene, seq)
-    return seq
-
+    return seq(species_name, gene, seq)
 
 def _build_marker_order(types):
     seen = set()
