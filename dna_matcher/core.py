@@ -63,15 +63,18 @@ def _fetch_with_retry(fn, retries=3, base_delay=1.0):
 
 def search_species_options(common_name: str, max_results: int = 6):
     def _fetch():
-        # Try a set of query variants to improve common-name resolution (e.g. "tiger",
-        # "royal bengal tiger", or field-restricted queries). Stop at the first
-        # non-empty result set.
+        # Prefer explicit common-name and all-names field searches before falling
+        # back to plain or quoted text. This avoids generic term searches that can
+        # return unrelated taxa when the input matches other text fields.
         query_variants = [
-            common_name,
+            f'"{common_name}"[Common Name]',
+            f'"{common_name}"[All Names]',
+            f'{common_name}[Common Name]',
+            f'{common_name}[All Names]',
+            f'"{common_name}"[Text Word]',
+            f'{common_name}[Text Word]',
             f'"{common_name}"',
-            f"{common_name}[All Names]",
-            f"{common_name}[Common Name]",
-            f"{common_name}[Text Word]",
+            common_name,
         ]
 
         records = None
