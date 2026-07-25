@@ -1,4 +1,3 @@
-```markdown
 # 🧬 GenoSync — Evolutionary DNA Matcher
 
 GenoSync compares DNA sequences fetched from NCBI to estimate similarity between two organisms using global and local alignment methods.
@@ -20,8 +19,6 @@ WEBSITE: [GenoSync Streamlit App](https://genosync-dnamatcher.streamlit.app/)
 * **Orchestration** (`dna_matcher/compare.py`, `core.py`): Decides markers, runs algorithms, formats results — centralizes logic.
 * **Persistence** (`dna_matcher/db.py` / sqlite): Lightweight storage for caches, pre-populated marker data, and metadata bundled for Streamlit Cloud deployment.
 * **Dependencies** (`requirements.txt`): Lists required Python packages for reproducible setup.
-
----
 
 ## 🚀 Quick Start
 
