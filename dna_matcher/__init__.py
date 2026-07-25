@@ -1,17 +1,4 @@
-"""DNA matcher package for NCBI sequence fetching and comparison algorithms."""
-
-from .core import (
-    search_species_options,
-    fetch_common_marker_sequences,
-    compare_species_matrix,
-    calculate_similarity_and_alignment,
-    build_neighbor_joining_tree,
-)
-
-__all__ = [
-    "search_species_options",
-    "fetch_common_marker_sequences",
-    "compare_species_matrix",
-    "calculate_similarity_and_alignment",
-    "build_neighbor_joining_tree",
-]
+# dna_matcher/__init__.py
+from .algorithms import calculate_similarity_and_alignment
+from .core import search_species_options, fetch_common_marker_sequences, get_marker_sequence
+from .compare import compare_species_matrix, build_neighbor_joining_tree

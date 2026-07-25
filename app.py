@@ -8,9 +8,14 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 
+import matplotlib.pyplot as plt
+import streamlit as st
+
 from dna_matcher.core import (
     search_species_options,
     fetch_common_marker_sequences,
+)
+from dna_matcher.compare import (
     compare_species_matrix,
     build_neighbor_joining_tree,
 )
@@ -28,7 +33,7 @@ st.markdown("---")
 def get_species_flow(index: int):
     common = st.text_input(
         f"Species {index} common name",
-        placeholder="e.g. goat, bison, puma",
+        placeholder="e.g. cat, bison, puma",
         key=f"common_{index}",
     )
     org_type = st.selectbox(
@@ -105,18 +110,19 @@ if st.button("🧬 Compare species", use_container_width=True):
         marker_result = fetch_common_marker_sequences(tuple(species_list), tuple(types))
         progress.progress(30)
 
-        if not marker_result:
-            st.error(
-                "Could not find a shared marker for all selected species. "
-                "Try removing one species or changing organism types."
-            )
+        if marker_result and "error" in marker_result:
+            bad_species = ", ".join(marker_result["error"])
+            st.error(f"Could not find a shared marker. NCBI is missing requested marker data for: **{bad_species}**")
+            st.warning("Try removing the failing species or changing their organism type to use a different marker chain.")
+        elif not marker_result:
+            st.error("Could not find a shared marker for all selected species.")
         else:
             marker = marker_result["marker"]
             sequences = marker_result["sequences"]
             status.text("Comparing species pairwise...")
             matrix_data = compare_species_matrix(sequences, marker, max_len=max_len)
             progress.progress(80)
-
+            
             tree_text = build_neighbor_joining_tree(matrix_data)
             progress.progress(100)
             status.text("Done ✅")
