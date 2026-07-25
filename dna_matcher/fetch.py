@@ -1,11 +1,12 @@
-import time
 import os
-from dotenv import load_dotenv
+import time
 from Bio import Entrez, SeqIO
+from dotenv import load_dotenv
 
 load_dotenv()
 Entrez.email = os.environ.get("NCBI_EMAIL", "")
 Entrez.api_key = os.environ.get("NCBI_API_KEY", "")
+NCBI_TIMEOUT = float(os.environ.get("NCBI_TIMEOUT", 20.0))
 
 MARKER_LENGTH_RANGE = {
     "COI":  (500,  10000),
@@ -20,14 +21,14 @@ MARKER_LENGTH_RANGE = {
 }
 
 
-def _fetch_with_retry(fn, retries=3, base_delay=1.0):
+def fetch_with_retry(fn, retries=3, base_delay=1.0):
     for attempt in range(retries):
         try:
             result = fn()
             if result is not None:
                 return result
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Retry {attempt + 1}/{retries}] {e}")
         time.sleep(base_delay * (2 ** attempt))
     return None
 
@@ -40,19 +41,34 @@ def fetch_marker_sequence(species_name: str, gene: str):
     )
 
     def _fetch():
-        handle = Entrez.esearch(db="nucleotide", term=search_term, retmax=5, sort="relevance")
+        handle = Entrez.esearch(
+            db="nucleotide",
+            term=search_term,
+            retmax=5,
+            sort="relevance",
+            timeout=NCBI_TIMEOUT,
+        )
         record = Entrez.read(handle)
         handle.close()
         if not record["IdList"]:
             return None
 
         for seq_id in record["IdList"]:
-            handle = Entrez.efetch(db="nucleotide", id=seq_id, rettype="fasta", retmode="text")
+            handle = Entrez.efetch(
+                db="nucleotide",
+                id=seq_id,
+                rettype="fasta",
+                retmode="text",
+                timeout=NCBI_TIMEOUT,
+            )
             seq_record = SeqIO.read(handle, "fasta")
             handle.close()
             seq_str = str(seq_record.seq)
             if min_len <= len(seq_str) <= max_len:
+                print(f"[NCBI] {species_name} {gene}: accepted {len(seq_str)}bp")
                 return seq_str
+            print(f"[NCBI] {species_name} {gene}: skipped {len(seq_str)}bp")
+
         return None
 
-    return _fetch_with_retry(_fetch)
+    return fetch_with_retry(_fetch)
