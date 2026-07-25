@@ -5,9 +5,7 @@
 # Run with: streamlit run app.py
 # =============================================================================
 
-import matplotlib.pyplot as plt
-import streamlit as st
-
+import sqlite3
 import matplotlib.pyplot as plt
 import streamlit as st
 
@@ -22,6 +20,20 @@ from dna_matcher.compare import (
 
 st.set_page_config(page_title="DNA Matcher", page_icon="🧬", layout="wide")
 
+def get_cached_species():
+    """Fetch the list of successfully pre-loaded species from the local database."""
+    try:
+        conn = sqlite3.connect("dna_matcher_cache.sqlite3")
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT species_name FROM marker_sequences WHERE gene = 'COI'") #[cite: 1]
+        species = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return sorted(species)
+    except Exception:
+        return []
+
+CACHED_SPECIES = get_cached_species()
+
 st.title("🧬 Evolutionary DNA Matcher")
 st.markdown(
     "Compare 3–5 species on the same DNA marker, view pairwise similarity, "
@@ -31,6 +43,10 @@ st.markdown("---")
 
 
 def get_species_flow(index: int):
+    """
+    Default to text input, but if live fetching or lookup fails, 
+    fallback to the pre-cached dropdown to keep the app functional.
+    """
     common = st.text_input(
         f"Species {index} common name",
         placeholder="e.g. cat, bison, puma",
@@ -49,7 +65,16 @@ def get_species_flow(index: int):
             options = search_species_options(common)
 
         if not options:
-            st.error(f"No species found for '{common}'. Try a different name.")
+            st.error(f"Live lookup failed for '{common}'. Falling back to pre-cached database.")
+            if CACHED_SPECIES:
+                sci_name = st.selectbox(
+                    f"Select a fallback species for slot {index}",
+                    CACHED_SPECIES,
+                    key=f"fallback_{index}"
+                )
+                st.info(f"Selected fallback: *{sci_name}*")
+            else:
+                st.error("No cached species available.")
         elif len(options) == 1:
             sci_name = options[0][1]
             st.info(f"Found: **{options[0][0]}** (*{sci_name}*)")
@@ -89,8 +114,8 @@ st.markdown("---")
 with st.expander("⚙️ Advanced Settings", expanded=False):
     max_len = st.slider(
         "Sequence length to compare (base pairs)",
-        min_value=1000,
-        max_value=10000,
+        min_value=100,
+        max_value=1000,
         value=1000,
         step=100,
         help="Higher = more accurate but slower. COI markers are ~650bp.",
@@ -112,8 +137,8 @@ if st.button("🧬 Compare species", use_container_width=True):
 
         if marker_result and "error" in marker_result:
             bad_species = ", ".join(marker_result["error"])
-            st.error(f"Could not find a shared marker. NCBI is missing requested marker data for: **{bad_species}**")
-            st.warning("Try removing the failing species or changing their organism type to use a different marker chain.")
+            st.error(f"Could not find a shared marker. NCBI failed for: **{bad_species}**")
+            st.warning("💡 Live extraction failed. Please use one of the pre-loaded cache names instead of a custom text query.")
         elif not marker_result:
             st.error("Could not find a shared marker for all selected species.")
         else:
@@ -192,3 +217,4 @@ if st.button("🧬 Compare species", use_container_width=True):
                 f"Compare length: {detail['compare_len']} bp, global: {detail['hirschberg_pct']:.2f}%, "
                 f"local: {detail['sw_pct']:.2f}% (score {detail['sw_score']})"
             )
+
