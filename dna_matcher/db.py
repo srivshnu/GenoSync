@@ -1,12 +1,13 @@
 import json
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 DB_FILE = os.environ.get("DNA_MATCHER_DB", "dna_matcher_cache.sqlite3")
 DB_PATH = Path(DB_FILE).resolve()
+CACHE_EXPIRY_DAYS = int(os.environ.get("DNA_MATCHER_CACHE_DAYS", 30))
 
 
 def _connect() -> sqlite3.Connection:
@@ -57,13 +58,17 @@ def _normalize_common_name(common_name: str) -> str:
     return common_name.strip().lower()
 
 
+def _get_cutoff_time() -> str:
+    return (datetime.utcnow() - timedelta(days=CACHE_EXPIRY_DAYS)).isoformat()
+
+
 def get_search_results(common_name: str) -> List[Tuple[str, str]]:
     normalized = _normalize_common_name(common_name)
     with _connect() as conn:
         rows = conn.execute(
             "SELECT candidate_common, scientific_name FROM species_search_results "
-            "WHERE common_name = ? ORDER BY result_rank",
-            (normalized,),
+            "WHERE common_name = ? AND searched_at >= ? ORDER BY result_rank",
+            (normalized, _get_cutoff_time()),
         ).fetchall()
     return [(row["candidate_common"], row["scientific_name"]) for row in rows]
 
@@ -85,8 +90,8 @@ def get_marker_sequence(species_name: str, gene: str) -> Optional[str]:
     with _connect() as conn:
         row = conn.execute(
             "SELECT sequence FROM marker_sequences "
-            "WHERE species_name = ? AND gene = ?",
-            (species_name, gene),
+            "WHERE species_name = ? AND gene = ? AND fetched_at >= ?",
+            (species_name, gene, _get_cutoff_time()),
         ).fetchone()
     return row["sequence"] if row else None
 
@@ -116,8 +121,8 @@ def get_comparison_result(
     with _connect() as conn:
         row = conn.execute(
             "SELECT details FROM comparison_results "
-            "WHERE species_a = ? AND species_b = ? AND marker = ? AND max_len = ?",
-            (a, b, marker, max_len),
+            "WHERE species_a = ? AND species_b = ? AND marker = ? AND max_len = ? AND computed_at >= ?",
+            (a, b, marker, max_len, _get_cutoff_time()),
         ).fetchone()
         if not row:
             return None
