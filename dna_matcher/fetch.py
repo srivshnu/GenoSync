@@ -33,6 +33,40 @@ def fetch_with_retry(fn, retries=3, base_delay=1.0):
     return None
 
 
+def get_scientific_name(common_name: str) -> str:
+    clean_name = common_name.strip()
+    
+    def _fetch_tax():
+        search_handle = Entrez.esearch(
+            db="taxonomy", 
+            term=clean_name, 
+            timeout=NCBI_TIMEOUT
+        )
+        search_results = Entrez.read(search_handle)
+        search_handle.close()
+        
+        if not search_results["IdList"]:
+            return clean_name
+            
+        tax_id = search_results["IdList"][0]
+        
+        fetch_handle = Entrez.efetch(
+            db="taxonomy", 
+            id=tax_id, 
+            retmode="xml", 
+            timeout=NCBI_TIMEOUT
+        )
+        taxonomy_records = Entrez.read(fetch_handle)
+        fetch_handle.close()
+        
+        if taxonomy_records:
+            return taxonomy_records[0]["ScientificName"]
+        return clean_name
+
+    result = fetch_with_retry(_fetch_tax)
+    return result if result else clean_name
+
+
 def fetch_marker_sequence(species_name: str, gene: str):
     min_len, max_len = MARKER_LENGTH_RANGE.get(gene, (300, 10000))
     search_term = (
