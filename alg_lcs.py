@@ -1,9 +1,6 @@
 # =============================================================================
 # alg_lcs.py — LCS Similarity Score, Space-Optimised Sliding Window
 # Returns similarity as a percentage — does NOT reconstruct the LCS string.
-# See alg_hirschberg.py for string reconstruction.
-#
-# Time: O(m * n)  |  Space: O(n)  — vs standard LCS which is O(m * n) space
 # =============================================================================
 
 
