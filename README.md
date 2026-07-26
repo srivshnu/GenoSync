@@ -26,11 +26,11 @@ GenoSync is built with a modular architecture separating the user interface, dat
 * **Interview/Demo Safe Mode:** Automatically falls back to the pre-populated SQLite database for species selection if the live NCBI API times out or becomes unresponsive during live evaluations.
 
 ### 🧬 Data Engineering & Persistence (`dna_matcher/core.py`, `dna_matcher/db.py`, `dna_matcher/fetch.py`)
-* **Scientific Name Resolution:** Cross-references user inputs with internal search caches and live NCBI taxonomy databases to enforce strict scientific naming conventions.
+* **Scientific Name Resolution:** Cross-references user inputs with internal search caches and then in live NCBI taxonomy databases to enforce strict scientific naming conventions.
 * **Marker Priority Chain:** Intelligently selects the most appropriate gene marker based on organism type (Animals: COI, 16S, cytb | Plants: rbcL, matK | Fungi: ITS).
 * **Two-Tier Caching System:** 
   * *Search Cache:* Stores mappings of common names to scientific names.
-  * *Sequence Cache:* Stores fetched FASTA sequences to bypass redundant API calls, guaranteeing high availability and performance.
+  * *Sequence Cache and Comparison Cache:* Stores fetched FASTA sequences to bypass redundant API calls, guaranteeing high availability and performance.
 
 ### 🧮 Alignment Algorithms
 * **Hirschberg Algorithm (Global Alignment - `dna_matcher/alg_hirschberg.py`):** A divide-and-conquer approach to sequence alignment that computes the global similarity percentage. It is space-efficient, operating in linear space while maintaining standard time complexity.
@@ -94,9 +94,9 @@ streamlit run app.py
 
 ## ⚠️ Notes & Limitations
 
-* **Sequence Truncation:** To ensure reasonable processing times on standard hardware, sequences are strictly capped at 1000 base pairs during algorithmic comparison.
+* **Sequence Truncation:** To ensure reasonable processing times on standard hardware, sequences are strictly capped at 1000 base pairs during algorithmic comparison.  Hence the percentage may not be equal the the actual 
 * **Single-Marker Constraint:** Evolutionary distance is calculated based on a single shared marker (e.g., Mitochondrial COI) rather than whole-genome comparisons.
-* **Nomenclature Ambiguity:** While the app attempts to resolve common names (e.g., "bear" -> *Ursus arctos*), users should verify the resolved scientific name in the UI to ensure biological accuracy.
+* **Nomenclature Ambiguity:** While the app attempts to resolve common names (e.g., "bear" -> *Ursus arctos*), users are recommended to verify the resolved scientific name in the UI to ensure biological accuracy as the common names may show results of multiple specie of the animal.
 * **Evaluation Reliability:** The pre-cached SQLite database ensures reliable performance and minimizes API timeouts and busy server errors during evaluations or demonstrations.
 
 ---
