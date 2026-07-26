@@ -1,7 +1,7 @@
 
 # 🧬 GenoSync — Evolutionary DNA Matcher
 
-GenoSync is a bioinformatics web application that computes the evolutionary similarity between multiple organisms by comparing their gene marker from DNA sequences. Fetching live genetic data from the NCBI GenBank and Taxonomy databases, the application performs both global and local sequence alignments to generate similarity matrices, heatmaps, and neighbor-joining phylogenetic trees. 
+GenoSync is a bioinformatics web application that computes the evolutionary similarity between multiple organisms by comparing their gene markers from DNA sequences. Fetching live genetic data from the NCBI GenBank and Taxonomy databases, the application performs both global and local sequence alignments to generate similarity matrices, heatmaps, and neighbor-joining phylogenetic trees. 
 
 WEBSITE: [GenoSync Streamlit App](https://genosync-dnamatcher.streamlit.app/)
 
@@ -9,7 +9,7 @@ WEBSITE: [GenoSync Streamlit App](https://genosync-dnamatcher.streamlit.app/)
 
 GenoSync is built with a modular architecture separating the user interface, data fetching, and computational algorithms:
 
-1. **Query Resolution:** User inputs (common names) are passed through `dna_matcher/core.py` to NCBI's Taxonomy API to resolve exact scientific names, reducing biological ambiguity.
+1. **Query Resolution:** User inputs (common names) are passed through `dna_matcher/core.py` to NCBI's Taxonomy API to resolve exact scientific names using regex pattern, reducing biological ambiguity.
 2. **Marker Selection:** The system iterates through a prioritized biological marker chain (e.g., COI, 16S for animals; rbcL for plants) to find a shared genetic marker among all selected species.
 3. **Data Retrieval & Caching:** Sequences are fetched via Biopython/Entrez. To mitigate NCBI API rate limits and timeouts, GenoSync implements a local SQLite caching layer (`dna_matcher_cache.sqlite3`). 
 4. **Alignment Engine:** Sequences are capped (default 1000bp) and routed to the algorithmic core, which computes Longest Common Subsequence (LCS), Hirschberg (global), and Smith-Waterman (local) alignments.
@@ -94,9 +94,9 @@ streamlit run app.py
 
 ## ⚠️ Notes & Limitations
 
-* **Sequence Truncation:** To ensure reasonable processing times on standard hardware, sequences are strictly capped at 1000 base pairs during algorithmic comparison.  Hence the percentage may not be equal the the actual 
+* **Sequence Truncation:** To ensure reasonable processing times on standard hardware, sequences are strictly capped at 1000 base pairs during algorithmic comparison. Hence, the percentage may not be equal to the actual evolutionary relationship of the species.
 * **Single-Marker Constraint:** Evolutionary distance is calculated based on a single shared marker (e.g., Mitochondrial COI) rather than whole-genome comparisons.
-* **Nomenclature Ambiguity:** While the app attempts to resolve common names (e.g., "bear" -> *Ursus arctos*), users are recommended to verify the resolved scientific name in the UI to ensure biological accuracy as the common names may show results of multiple specie of the animal.
+* **Nomenclature Ambiguity:** While the app attempts to resolve common names (e.g., "bear" -> *Ursus arctos*), users are recommended to verify the resolved scientific name in the UI to ensure biological accuracy, as common names may yield results for multiple species.
 * **Evaluation Reliability:** The pre-cached SQLite database ensures reliable performance and minimizes API timeouts and busy server errors during evaluations or demonstrations.
 
 ---
@@ -108,9 +108,3 @@ streamlit run app.py
 * **Algorithms:**
 * Hirschberg, D. S. (1975). *A linear space algorithm for computing maximal common subsequences.* Communications of the ACM.
 * Smith, T. F., & Waterman, M. S. (1981). *Identification of common molecular subsequences.* Journal of Molecular Biology.
-
-
-
-```
-
-```

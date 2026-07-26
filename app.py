@@ -36,11 +36,11 @@ def get_cached_species():
 CACHED_SPECIES = get_cached_species()
 
 def is_valid_scientific_name(name: str) -> bool:
-    """Validate if string conforms to standard scientific binomial nomenclature (e.g. Genus species)."""
+    """Validate if string conforms to standard scientific nomenclature, including Genus-only."""
     if not name or not isinstance(name, str):
         return False
-    # Matches Latin binomial/trinomial species format
-    pattern = r"^[A-Z][a-z]+(\s[a-z]+)+$"
+    # Matches single Genus (Alligator) or binomial/trinomial (Gavialis gangeticus)
+    pattern = r"^[A-Z][a-z]+(\s[a-z0-9]+)*$"
     return bool(re.match(pattern, name.strip()))
 
 st.title("🧬 Evolutionary DNA Matcher")
@@ -196,26 +196,42 @@ if st.session_state.get("run_comparison", False):
         marker = marker_result["marker"]
         sequences = marker_result["sequences"]
         
-        # Double check all sequence dictionary keys are valid scientific names
+        # Filter for strict scientific names, but fallback to raw sequences if NCBI adds strain/isolate info
         valid_sequences = {
             k: v for k, v in sequences.items() if is_valid_scientific_name(k)
         }
+        if len(valid_sequences) < 2:
+            valid_sequences = sequences
+
+        if len(valid_sequences) < 2:
+            progress.empty()
+            status.empty()
+            st.error("⚠️ Not enough valid sequences retrieved to perform a comparison.")
+            st.stop()
 
         status.text("Comparing species pairwise using scientific taxonomy...")
         matrix_data = compare_species_matrix(valid_sequences, marker, max_len=max_len)
-        progress.progress(80)
         
+        species_names = matrix_data.get("species", [])
+        
+        # Prevent Matplotlib from crashing if matrix generation failed
+        if len(species_names) < 2:
+            progress.empty()
+            status.empty()
+            st.error("⚠️ Matrix generation failed: Not enough overlapping species data to plot.")
+            st.stop()
+            
+        progress.progress(80)
         tree_text = build_neighbor_joining_tree(matrix_data)
         progress.progress(100)
         status.text("Done ✅")
         st.balloons()
 
         st.markdown("#### Genetic marker used")
-        st.info(f"`{marker}` matched for scientific species: {', '.join([f'*{s}*' for s in matrix_data['species']])}")
+        st.info(f"`{marker}` matched for scientific species: {', '.join([f'*{s}*' for s in species_names])}")
         st.markdown("---")
 
         st.markdown("#### Pairwise similarity heatmap")
-        species_names = matrix_data["species"]
         scores = [
             [matrix_data["matrix"][a][b] for b in species_names]
             for a in species_names
