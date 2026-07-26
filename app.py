@@ -148,25 +148,35 @@ if st.session_state.get("run_comparison", False):
     progress = st.progress(0)
     status = st.empty()
 
-    status.text("Fetching common DNA marker strictly by scientific name...")
+    status.text("Fetching common DNA marker...")
     marker_result = fetch_common_marker_sequences(tuple(species_list), tuple(types))
     progress.progress(30)
 
-    # Fetch failure handling with direct dropdown replacements
+    # Fetch failure handling with targeted dropdown replacements
     fetch_failed = False
     failed_species = []
 
     if marker_result and "error" in marker_result:
         fetch_failed = True
-        failed_species = marker_result["error"]
+        error_val = marker_result["error"]
+        
+        if isinstance(error_val, list):
+            failed_species = error_val
+        else:
+            # If the backend returns a general error string, check which requested 
+            # species are missing from our local cache to narrow down the culprit
+            missing_from_cache = [s for s in species_list if s not in CACHED_SPECIES]
+            failed_species = missing_from_cache if missing_from_cache else species_list
+
     elif not marker_result or "sequences" not in marker_result:
         fetch_failed = True
-        failed_species = species_list
+        missing_from_cache = [s for s in species_list if s not in CACHED_SPECIES]
+        failed_species = missing_from_cache if missing_from_cache else species_list
 
     if fetch_failed:
         progress.empty()
         status.empty()
-        st.error("⚠️ Sequence fetch failed for one or more species.")
+        st.error(f"⚠️ Sequence fetch failed for: {', '.join([f'*{s}*' for s in failed_species])}")
         st.warning("Select alternative cached species for the failed entries below:")
 
         replacements = {}
